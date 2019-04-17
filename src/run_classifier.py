@@ -269,7 +269,7 @@ class IntentProcessor(DataProcessor):
             self._read_csv(os.path.join(data_dir, "train.csv")), "train")
 
     def get_dev_examples(self, data_dir):
-        return self._create_examples(self._read_csv(os.path.join(data_dir, "dev.csv")), "val")
+        return self._create_examples(self._read_csv(os.path.join(data_dir, "val.csv")), "val")
 
     def get_test_examples(self, data_dir):
         return self._create_examples(self._read_csv(os.path.join(data_dir, 'test.csv')), 'test')
