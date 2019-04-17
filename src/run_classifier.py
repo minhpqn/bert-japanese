@@ -13,6 +13,7 @@ import csv
 import json
 import os
 import sys
+import numpy as np
 import tempfile
 import tokenization_sentencepiece as tokenization
 import tensorflow as tf
@@ -26,6 +27,7 @@ bert_config_file = tempfile.NamedTemporaryFile(mode='w+t', encoding='utf-8', suf
 bert_config_file.write(json.dumps({k:utils.str_to_value(v) for k,v in config['BERT-CONFIG'].items()}))
 bert_config_file.seek(0)
 
+print(os.path.join(CURDIR, os.pardir, 'bert'))
 sys.path.append(os.path.join(CURDIR, os.pardir, 'bert'))
 import modeling
 import optimization
@@ -182,71 +184,119 @@ class InputFeatures(object):
 
 
 class DataProcessor(object):
-  """Base class for data converters for sequence classification data sets."""
+    """Base class for data converters for sequence classification data sets."""
 
-  def get_train_examples(self, data_dir):
-    """Gets a collection of `InputExample`s for the train set."""
-    raise NotImplementedError()
+    def get_train_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the train set."""
+        raise NotImplementedError()
 
-  def get_dev_examples(self, data_dir):
-    """Gets a collection of `InputExample`s for the dev set."""
-    raise NotImplementedError()
+    def get_dev_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for the dev set."""
+        raise NotImplementedError()
 
-  def get_test_examples(self, data_dir):
-    """Gets a collection of `InputExample`s for prediction."""
-    raise NotImplementedError()
+    def get_test_examples(self, data_dir):
+        """Gets a collection of `InputExample`s for prediction."""
+        raise NotImplementedError()
 
-  def get_labels(self):
-    """Gets the list of labels for this data set."""
-    raise NotImplementedError()
+    def get_labels(self, data_dir=None):
+        """Gets the list of labels for this data set."""
+        raise NotImplementedError()
 
-  @classmethod
-  def _read_tsv(cls, input_file, quotechar=None):
-    """Reads a tab separated value file."""
-    with tf.gfile.Open(input_file, "r") as f:
-      reader = csv.reader(f, delimiter="\t", quotechar=quotechar)
-      lines = []
-      for line in reader:
-        lines.append(line)
-      return lines
+    @classmethod
+    def _read_tsv(cls, input_file, quotechar=None):
+        """Reads a tab separated value file."""
+        with tf.gfile.Open(input_file, "r") as f:
+            reader = csv.reader(f, delimiter="\t", quotechar=quotechar)
+            lines = []
+            for line in reader:
+                lines.append(line)
+            return lines
+
+    @classmethod
+    def _read_csv(cls, input_file):
+        with tf.gfile.Open(input_file, "r") as f:
+            reader = csv.reader(f)
+            lines = []
+            for line in reader:
+                lines.append(line)
+            return lines
 
 
 class LivedoorProcessor(DataProcessor):
-  """Processor for the livedoor data set (see https://www.rondhuit.com/download.html)."""
+    """Processor for the livedoor data set (see https://www.rondhuit.com/download.html)."""
 
-  def get_train_examples(self, data_dir):
-    """See base class."""
-    return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
+    def get_train_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "train.tsv")), "train")
 
-  def get_dev_examples(self, data_dir):
-    """See base class."""
-    return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
+    def get_dev_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "dev.tsv")), "dev")
 
-  def get_test_examples(self, data_dir):
-    """See base class."""
-    return self._create_examples(
-        self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
+    def get_test_examples(self, data_dir):
+        """See base class."""
+        return self._create_examples(
+            self._read_tsv(os.path.join(data_dir, "test.tsv")), "test")
 
-  def get_labels(self):
-    """See base class."""
-    return ['dokujo-tsushin', 'it-life-hack', 'kaden-channel', 'livedoor-homme', 'movie-enter', 'peachy', 'smax', 'sports-watch', 'topic-news']
+    def get_labels(self, data_dir=None):
+        """See base class."""
+        return ['dokujo-tsushin', 'it-life-hack', 'kaden-channel', 'livedoor-homme', 'movie-enter', 'peachy', 'smax',
+                'sports-watch', 'topic-news']
 
-  def _create_examples(self, lines, set_type):
-    """Creates examples for the training and dev sets."""
-    examples = []
-    for (i, line) in enumerate(lines):
-      if i == 0:
-        idx_text = line.index('text')
-        idx_label = line.index('label')
-      else:
-        guid = "%s-%s" % (set_type, i)
-        text_a = tokenization.convert_to_unicode(line[idx_text])
-        label = tokenization.convert_to_unicode(line[idx_label])
-        examples.append(
-            InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
-    return examples
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        examples = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                idx_text = line.index('text')
+                idx_label = line.index('label')
+            else:
+                guid = "%s-%s" % (set_type, i)
+                text_a = tokenization.convert_to_unicode(line[idx_text])
+                label = tokenization.convert_to_unicode(line[idx_label])
+                examples.append(
+                    InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+        return examples
+
+
+class IntentProcessor(DataProcessor):
+    """Processor for Japanese intent dataset"""
+
+    def get_train_examples(self, data_dir):
+        return self._create_examples(
+            self._read_csv(os.path.join(data_dir, "train.csv")), "train")
+
+    def get_dev_examples(self, data_dir):
+        return self._create_examples(self._read_csv(os.path.join(data_dir, "dev.csv")), "dev")
+
+    def get_test_examples(self, data_dir):
+        return self._create_examples(self._read_csv(os.path.join(data_dir, 'test.csv')), 'test')
+
+    def get_labels(self, data_dir=None):
+        assert data_dir is not None
+        examples = self._create_examples(self._read_csv(os.path.join(data_dir, "train.csv")), "train")
+        labels = []
+        for e in examples:
+            labels.append(e.label)
+        labels = np.unique(labels)
+        return labels.tolist()
+
+    def _create_examples(self, lines, set_type):
+        """Creates examples for the training and dev sets."""
+        examples = []
+        for (i, line) in enumerate(lines):
+            if i == 0:
+                idx_text = line.index('text')
+                idx_label = line.index('label')
+            else:
+                guid = "%s-%s" % (set_type, i)
+                text_a = tokenization.convert_to_unicode(line[idx_text])
+                label = tokenization.convert_to_unicode(line[idx_label])
+                examples.append(
+                    InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
+        return examples
 
 
 def convert_single_example(ex_index, example, label_list, max_seq_length,
@@ -660,6 +710,7 @@ def main(_):
 
   processors = {
       "livedoor": LivedoorProcessor,
+      "intent": IntentProcessor,
   }
 
   tokenization.validate_case_matches_checkpoint(FLAGS.do_lower_case,
@@ -686,7 +737,7 @@ def main(_):
 
   processor = processors[task_name]()
 
-  label_list = processor.get_labels()
+  label_list = processor.get_labels(FLAGS.data_dir)
 
   tokenizer = tokenization.FullTokenizer(
       model_file=FLAGS.model_file, vocab_file=FLAGS.vocab_file,
